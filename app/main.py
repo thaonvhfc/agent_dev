@@ -1,17 +1,28 @@
 import os
 import shutil
-from fastapi import FastAPI, File, UploadFile, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from datetime import timedelta, datetime
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request, Depends, status
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 import aiofiles
 
-from app.models import ChatMessage, ChatResponse, UploadResponse
+from app.models import (
+    ChatMessage, ChatResponse, UploadResponse, 
+    UserCreate, UserLogin, Token, UserResponse, ChatHistoryResponse
+)
 from app.document_processor import DocumentProcessor
 from app.vector_store import VectorStore
 from app.chat_service import ChatService
 from app.config import settings
+from app.database import get_db, create_tables, User, ChatHistory
+from app.auth import (
+    authenticate_user, create_access_token, get_current_user, 
+    get_current_admin_user, get_password_hash, create_admin_user,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
 
 app = FastAPI(title="Vietnamese PDF Chatbot RAG", version="1.0.0")
 
@@ -36,14 +47,100 @@ chat_service = ChatService()
 # Tạo thư mục uploads nếu chưa tồn tại
 os.makedirs(settings.UPLOAD_DIRECTORY, exist_ok=True)
 
+# Tạo database tables và admin user
+create_tables()
+
+# Tạo admin user mặc định
+def init_admin():
+    db = next(get_db())
+    create_admin_user(db)
+    db.close()
+
+init_admin()
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    """Trang chủ"""
-    return templates.TemplateResponse("index.html", {"request": request})
+    """Trang chủ - chuyển hướng đến login"""
+    return RedirectResponse(url="/login")
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """Trang đăng nhập"""
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.get("/register", response_class=HTMLResponse)
+async def register_page(request: Request):
+    """Trang đăng ký"""
+    return templates.TemplateResponse("register.html", {"request": request})
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    """Dashboard chính sau khi đăng nhập"""
+    # Tạo user mặc định cho template (sẽ được override bởi JavaScript)
+    default_user = {
+        "username": "guest",
+        "role": "user",
+        "created_at": datetime.now()
+    }
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request, 
+        "user": default_user
+    })
+
+# Authentication endpoints
+@app.post("/api/register", response_model=UserResponse)
+async def register(user_data: UserCreate, db: Session = Depends(get_db)):
+    """Đăng ký user mới"""
+    # Kiểm tra username đã tồn tại
+    existing_user = db.query(User).filter(User.username == user_data.username).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Username đã tồn tại"
+        )
+    
+    # Tạo user mới
+    hashed_password = get_password_hash(user_data.password)
+    new_user = User(
+        username=user_data.username,
+        password_hash=hashed_password,
+        role=user_data.role
+    )
+    
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    return new_user
+
+@app.post("/api/login", response_model=Token)
+async def login(user_data: UserLogin, db: Session = Depends(get_db)):
+    """Đăng nhập"""
+    user = authenticate_user(db, user_data.username, user_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Username hoặc password không đúng",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user
+    }
 
 @app.post("/upload", response_model=UploadResponse)
-async def upload_pdf(file: UploadFile = File(...)):
-    """Upload và xử lý file PDF"""
+async def upload_pdf(
+    file: UploadFile = File(...), 
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Upload và xử lý file PDF - chỉ admin"""
     
     # Kiểm tra định dạng file
     if not file.filename.lower().endswith('.pdf'):
@@ -80,13 +177,38 @@ async def upload_pdf(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Lỗi xử lý file: {str(e)}")
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(message: ChatMessage):
+async def chat(
+    message: ChatMessage, 
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Xử lý tin nhắn chat"""
     try:
-        response, sources = chat_service.chat(message.message)
+        response, sources = chat_service.chat(message.message, current_user.id, db)
         return ChatResponse(response=response, sources=sources)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi xử lý chat: {str(e)}")
+
+@app.get("/api/chat-history", response_model=list[ChatHistoryResponse])
+async def get_chat_history(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Lấy lịch sử chat của user"""
+    chat_history = db.query(ChatHistory).filter(
+        ChatHistory.user_id == current_user.id
+    ).order_by(ChatHistory.created_at.desc()).limit(50).all()
+    
+    return chat_history
+
+@app.get("/api/users", response_model=list[UserResponse])
+async def get_users(
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Lấy danh sách users - chỉ admin"""
+    users = db.query(User).all()
+    return users
 
 @app.get("/health")
 async def health_check():
