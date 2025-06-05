@@ -1,8 +1,10 @@
 import ollama
 from typing import List, Tuple
 from langchain.schema import Document
+from sqlalchemy.orm import Session
 from app.config import settings
 from app.vector_store import VectorStore
+from app.database import ChatHistory
 
 class ChatService:
     def __init__(self):
@@ -37,41 +39,54 @@ CÂU HỎI: {question}
 TRẢ LỜI:"""
         return prompt
     
-    def chat(self, message: str) -> Tuple[str, List[str]]:
+    def chat(self, message: str, user_id: int = None, db: Session = None) -> Tuple[str, List[str]]:
         """Xử lý tin nhắn chat và trả về câu trả lời cùng nguồn"""
         try:
             # Tìm kiếm documents liên quan
             relevant_docs = self.vector_store.similarity_search(message, k=4)
             
             if not relevant_docs:
-                return "Tôi không tìm thấy thông tin liên quan trong tài liệu đã tải lên. Vui lòng tải lên tài liệu PDF chứa thông tin bạn cần.", []
-            
-            # Tạo context từ documents
-            context = self._create_context_from_docs(relevant_docs)
-            
-            # Tạo prompt
-            prompt = self._create_prompt(message, context)
-            
-            # Gọi Ollama API
-            response = self.client.chat(
-                model=settings.OLLAMA_MODEL,
-                messages=[
-                    {
-                        'role': 'user',
-                        'content': prompt
+                answer = "Tôi không tìm thấy thông tin liên quan trong tài liệu đã tải lên. Vui lòng tải lên tài liệu PDF chứa thông tin bạn cần."
+                sources = []
+            else:
+                # Tạo context từ documents
+                context = self._create_context_from_docs(relevant_docs)
+                
+                # Tạo prompt
+                prompt = self._create_prompt(message, context)
+                
+                # Gọi Ollama API
+                response = self.client.chat(
+                    model=settings.OLLAMA_MODEL,
+                    messages=[
+                        {
+                            'role': 'user',
+                            'content': prompt
+                        }
+                    ],
+                    options={
+                        'temperature': 0.1,
+                        'top_p': 0.9,
+                        'num_predict': 512
                     }
-                ],
-                options={
-                    'temperature': 0.1,
-                    'top_p': 0.9,
-                    'num_predict': 512
-                }
-            )
+                )
+                
+                answer = response['message']['content'].strip()
+                
+                # Lấy danh sách nguồn
+                sources = list(set([doc.metadata.get('source', 'Unknown') for doc in relevant_docs]))
             
-            answer = response['message']['content'].strip()
-            
-            # Lấy danh sách nguồn
-            sources = list(set([doc.metadata.get('source', 'Unknown') for doc in relevant_docs]))
+            # Lưu lịch sử chat nếu có user_id và db session
+            if user_id and db:
+                source_file = sources[0] if sources else None
+                chat_history = ChatHistory(
+                    user_id=user_id,
+                    question=message,
+                    answer=answer,
+                    source_file=source_file
+                )
+                db.add(chat_history)
+                db.commit()
             
             return answer, sources
             

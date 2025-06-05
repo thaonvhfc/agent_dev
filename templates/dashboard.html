@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Vietnamese PDF Chatbot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .chat-container {
+            height: 70vh;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            background: white;
+            padding: 1rem;
+        }
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+        .user-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: auto;
+        }
+        .bot-message {
+            background: #e9ecef;
+            color: #333;
+        }
+        .upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            background: white;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        .sidebar {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            height: fit-content;
+        }
+        .history-item {
+            padding: 0.5rem;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .history-item:hover {
+            background: #f8f9fa;
+        }
+        .admin-only {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-robot me-2"></i>PDF Chatbot
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">
+                    <i class="fas fa-user me-1"></i>
+                    <span id="username">{{ user.username }}</span>
+                    <span class="badge bg-light text-dark ms-1" id="userRole">{{ user.role }}</span>
+                </span>
+                <button class="btn btn-outline-light btn-sm" onclick="logout()">
+                    <i class="fas fa-sign-out-alt me-1"></i>Đăng xuất
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <!-- Main Chat Area -->
+            <div class="col-lg-8">
+                <!-- Upload Section (Admin Only) -->
+                <div class="admin-only mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-upload me-2"></i>Tải lên tài liệu PDF</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="upload-area" id="uploadArea">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                <h5>Kéo thả file PDF vào đây hoặc click để chọn</h5>
+                                <p class="text-muted">Chỉ chấp nhận file PDF, tối đa 10MB</p>
+                                <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+                                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                                    <i class="fas fa-folder-open me-2"></i>Chọn file
+                                </button>
+                            </div>
+                            <div id="uploadProgress" class="mt-3" style="display: none;">
+                                <div class="progress">
+                                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Section -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-comments me-2"></i>Trò chuyện với AI</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="chat-container" id="chatContainer">
+                            <div class="text-center text-muted">
+                                <i class="fas fa-robot fa-2x mb-2"></i>
+                                <p>Xin chào! Tôi có thể giúp bạn trả lời câu hỏi dựa trên các tài liệu PDF đã tải lên.</p>
+                            </div>
+                        </div>
+                        <div class="p-3 border-top">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="messageInput" 
+                                       placeholder="Nhập câu hỏi của bạn..." 
+                                       onkeypress="handleKeyPress(event)">
+                                <button class="btn btn-primary" onclick="sendMessage()">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- User Info -->
+                <div class="sidebar mb-4">
+                    <h6><i class="fas fa-user me-2"></i>Thông tin người dùng</h6>
+                    <p class="mb-1"><strong>Tên:</strong> <span id="sidebarUsername">{{ user.username }}</span></p>
+                    <p class="mb-1"><strong>Vai trò:</strong> <span id="sidebarRole">{{ user.role }}</span></p>
+                    <p class="mb-0"><strong>Tham gia:</strong> <span id="joinDate">{{ user.created_at.strftime('%d/%m/%Y') }}</span></p>
+                </div>
+
+                <!-- Chat History -->
+                <div class="sidebar">
+                    <h6><i class="fas fa-history me-2"></i>Lịch sử trò chuyện</h6>
+                    <div id="chatHistory">
+                        <p class="text-muted text-center">Đang tải...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variables
+        let currentUser = null;
+        let authToken = null;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Check authentication
+            authToken = localStorage.getItem('access_token');
+            
+            if (!authToken) {
+                window.location.href = '/login';
+                return;
+            }
+            
+            // Get user info from API
+            try {
+                const response = await apiCall('/api/me');
+                if (response.ok) {
+                    currentUser = await response.json();
+                    console.log('Current user:', currentUser);
+                    console.log('is_admin:', currentUser.is_admin);
+                    
+                    // Update UI with user info
+                    document.getElementById('username').textContent = currentUser.username;
+                    document.getElementById('userRole').textContent = currentUser.is_admin ? 'admin' : 'user';
+                    document.getElementById('sidebarUsername').textContent = currentUser.username;
+                    document.getElementById('sidebarRole').textContent = currentUser.is_admin ? 'admin' : 'user';
+                    
+                    // Show admin features if user is admin
+                    if (currentUser.is_admin) {
+                        document.querySelectorAll('.admin-only').forEach(el => {
+                            el.style.display = 'block';
+                        });
+                    }
+                } else {
+                    logout();
+                    return;
+                }
+            } catch (error) {
+                console.error('Error getting user info:', error);
+                logout();
+                return;
+            }
+            
+            // Load chat history
+            loadChatHistory();
+            
+            // Setup file upload
+            setupFileUpload();
+        });
+
+        // Authentication functions
+        function logout() {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+        }
+
+        // API helper function
+        async function apiCall(url, options = {}) {
+            const defaultOptions = {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            };
+            
+            const response = await fetch(url, { ...options, headers: defaultOptions.headers });
+            
+            if (response.status === 401) {
+                logout();
+                return;
+            }
+            
+            return response;
+        }
+
+        // Chat functions
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message to chat
+            addMessageToChat(message, 'user');
+            messageInput.value = '';
+            
+            // Show typing indicator
+            const typingId = addTypingIndicator();
+            
+            try {
+                const response = await apiCall('/chat', {
+                    method: 'POST',
+                    body: JSON.stringify({ message })
+                });
+                
+                const data = await response.json();
+                
+                // Remove typing indicator
+                removeTypingIndicator(typingId);
+                
+                if (response.ok) {
+                    addMessageToChat(data.response, 'bot', data.sources);
+                    loadChatHistory(); // Refresh history
+                } else {
+                    addMessageToChat('Lỗi: ' + data.detail, 'bot');
+                }
+            } catch (error) {
+                removeTypingIndicator(typingId);
+                addMessageToChat('Lỗi kết nối. Vui lòng thử lại.', 'bot');
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function addMessageToChat(message, sender, sources = []) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            
+            let sourceText = '';
+            if (sources && sources.length > 0) {
+                sourceText = `<div class="mt-2"><small><strong>Nguồn:</strong> ${sources.join(', ')}</small></div>`;
+            }
+            
+            messageDiv.innerHTML = `
+                <div>${message}</div>
+                ${sourceText}
+            `;
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function addTypingIndicator() {
+            const chatContainer = document.getElementById('chatContainer');
+            const typingDiv = document.createElement('div');
+            const typingId = 'typing-' + Date.now();
+            typingDiv.id = typingId;
+            typingDiv.className = 'message bot-message';
+            typingDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang suy nghĩ...';
+            
+            chatContainer.appendChild(typingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            return typingId;
+        }
+
+        function removeTypingIndicator(typingId) {
+            const typingDiv = document.getElementById(typingId);
+            if (typingDiv) {
+                typingDiv.remove();
+            }
+        }
+
+        // Chat history functions
+        async function loadChatHistory() {
+            try {
+                const response = await apiCall('/api/chat-history');
+                const history = await response.json();
+                
+                const historyContainer = document.getElementById('chatHistory');
+                
+                if (history.length === 0) {
+                    historyContainer.innerHTML = '<p class="text-muted text-center">Chưa có lịch sử trò chuyện</p>';
+                    return;
+                }
+                
+                historyContainer.innerHTML = history.map(item => `
+                    <div class="history-item" onclick="showHistoryItem('${item.question}', '${item.answer}')">
+                        <div class="fw-bold">${item.question.substring(0, 50)}${item.question.length > 50 ? '...' : ''}</div>
+                        <small class="text-muted">${new Date(item.timestamp).toLocaleString('vi-VN')}</small>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading chat history:', error);
+            }
+        }
+
+        function showHistoryItem(question, answer) {
+            const chatContainer = document.getElementById('chatContainer');
+            chatContainer.innerHTML = `
+                <div class="text-center text-muted mb-3">
+                    <i class="fas fa-history fa-2x mb-2"></i>
+                    <p>Lịch sử trò chuyện</p>
+                </div>
+            `;
+            addMessageToChat(question, 'user');
+            addMessageToChat(answer, 'bot');
+        }
+
+        // File upload functions
+        function setupFileUpload() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            
+            if (!uploadArea || !fileInput) return; // Not admin
+            
+            // Drag and drop events
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFileUpload(files[0]);
+                }
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileUpload(e.target.files[0]);
+                }
+            });
+        }
+
+        async function handleFileUpload(file) {
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                alert('Chỉ chấp nhận file PDF');
+                return;
+            }
+            
+            if (file.size > 10 * 1024 * 1024) { // 10MB
+                alert('File quá lớn (tối đa 10MB)');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const progressContainer = document.getElementById('uploadProgress');
+            const progressBar = progressContainer.querySelector('.progress-bar');
+            
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+                
+                progressBar.style.width = '100%';
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`File đã được tải lên thành công!\nTên file: ${data.filename}\nSố chunks: ${data.chunks_created}`);
+                } else {
+                    alert('Lỗi: ' + data.detail);
+                }
+            } catch (error) {
+                alert('Lỗi kết nối. Vui lòng thử lại.');
+            } finally {
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                }, 2000);
+            }
+        }
+    </script>
+</body>
+</html>
