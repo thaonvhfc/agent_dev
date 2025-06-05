@@ -179,23 +179,43 @@
         let authToken = null;
 
         // Initialize page
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             // Check authentication
             authToken = localStorage.getItem('access_token');
-            const userStr = localStorage.getItem('user');
             
-            if (!authToken || !userStr) {
+            if (!authToken) {
                 window.location.href = '/login';
                 return;
             }
             
-            currentUser = JSON.parse(userStr);
-            
-            // Show admin features if user is admin
-            if (currentUser.role === 'admin') {
-                document.querySelectorAll('.admin-only').forEach(el => {
-                    el.style.display = 'block';
-                });
+            // Get user info from API
+            try {
+                const response = await apiCall('/api/me');
+                if (response.ok) {
+                    currentUser = await response.json();
+                    console.log('Current user:', currentUser);
+                    console.log('is_admin:', currentUser.is_admin);
+                    
+                    // Update UI with user info
+                    document.getElementById('username').textContent = currentUser.username;
+                    document.getElementById('userRole').textContent = currentUser.is_admin ? 'admin' : 'user';
+                    document.getElementById('sidebarUsername').textContent = currentUser.username;
+                    document.getElementById('sidebarRole').textContent = currentUser.is_admin ? 'admin' : 'user';
+                    
+                    // Show admin features if user is admin
+                    if (currentUser.is_admin) {
+                        document.querySelectorAll('.admin-only').forEach(el => {
+                            el.style.display = 'block';
+                        });
+                    }
+                } else {
+                    logout();
+                    return;
+                }
+            } catch (error) {
+                console.error('Error getting user info:', error);
+                logout();
+                return;
             }
             
             // Load chat history

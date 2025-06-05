@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from datetime import datetime
 
@@ -16,8 +16,9 @@ class UploadResponse(BaseModel):
 
 class UserCreate(BaseModel):
     username: str
+    email: EmailStr
     password: str
-    role: str = "user"
+    role: Optional[str] = "user"
 
 class UserLogin(BaseModel):
     username: str
@@ -26,7 +27,8 @@ class UserLogin(BaseModel):
 class UserResponse(BaseModel):
     id: int
     username: str
-    role: str
+    email: str
+    is_admin: bool
     created_at: datetime
     
     class Config:

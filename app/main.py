@@ -21,7 +21,7 @@ from app.database import get_db, create_tables, User, ChatHistory
 from app.auth import (
     authenticate_user, create_access_token, get_current_user, 
     get_current_admin_user, get_password_hash, create_admin_user,
-    ACCESS_TOKEN_EXPIRE_MINUTES
+    get_current_user_required, ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
 app = FastAPI(title="Vietnamese PDF Chatbot RAG", version="1.0.0")
@@ -47,16 +47,8 @@ chat_service = ChatService()
 # Tạo thư mục uploads nếu chưa tồn tại
 os.makedirs(settings.UPLOAD_DIRECTORY, exist_ok=True)
 
-# Tạo database tables và admin user
+# Tạo database tables
 create_tables()
-
-# Tạo admin user mặc định
-def init_admin():
-    db = next(get_db())
-    create_admin_user(db)
-    db.close()
-
-init_admin()
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
@@ -99,12 +91,21 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
             detail="Username đã tồn tại"
         )
     
+    # Kiểm tra email đã tồn tại
+    existing_email = db.query(User).filter(User.email == user_data.email).first()
+    if existing_email:
+        raise HTTPException(
+            status_code=400,
+            detail="Email đã tồn tại"
+        )
+    
     # Tạo user mới
     hashed_password = get_password_hash(user_data.password)
     new_user = User(
         username=user_data.username,
+        email=user_data.email,
         password_hash=hashed_password,
-        role=user_data.role
+        is_admin=(user_data.role == "admin")
     )
     
     db.add(new_user)
@@ -179,10 +180,10 @@ async def upload_pdf(
 @app.post("/chat", response_model=ChatResponse)
 async def chat(
     message: ChatMessage, 
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_required),
     db: Session = Depends(get_db)
 ):
-    """Xử lý tin nhắn chat"""
+    """Xử lý tin nhắn chat - yêu cầu đăng nhập"""
     try:
         response, sources = chat_service.chat(message.message, current_user.id, db)
         return ChatResponse(response=response, sources=sources)
@@ -191,7 +192,7 @@ async def chat(
 
 @app.get("/api/chat-history", response_model=list[ChatHistoryResponse])
 async def get_chat_history(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_required),
     db: Session = Depends(get_db)
 ):
     """Lấy lịch sử chat của user"""
@@ -200,6 +201,16 @@ async def get_chat_history(
     ).order_by(ChatHistory.created_at.desc()).limit(50).all()
     
     return chat_history
+
+@app.get("/api/me", response_model=UserResponse)
+async def get_current_user_info(current_user: User = Depends(get_current_user_required)):
+    """Lấy thông tin user hiện tại"""
+    return current_user
+
+@app.post("/api/logout")
+async def logout():
+    """Đăng xuất"""
+    return {"message": "Đăng xuất thành công"}
 
 @app.get("/api/users", response_model=list[UserResponse])
 async def get_users(
