@@ -439,6 +439,7 @@
                 const data = await response.json();
                 
                 if (response.ok) {
+                    await loadUploadedFiles(); // Reload danh sách file sau khi upload thành công
                     alert(`File đã được tải lên thành công!\nTên file: ${data.filename}\nSố chunks: ${data.chunks_created}`);
                 } else {
                     alert('Lỗi: ' + data.detail);
