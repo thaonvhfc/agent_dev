@@ -221,9 +221,62 @@ async def get_users(
     users = db.query(User).all()
     return users
 
+@app.get("/api/files")
+async def get_uploaded_files(current_user: User = Depends(get_current_user_required)):
+    """Lấy danh sách file đã upload"""
+    upload_dir = settings.UPLOAD_DIRECTORY
+    files = []
+    
+    if os.path.exists(upload_dir):
+        for filename in os.listdir(upload_dir):
+            if filename.endswith('.pdf'):
+                file_path = os.path.join(upload_dir, filename)
+                files.append({
+                    "filename": filename,
+                    "size": os.path.getsize(file_path),
+                    "uploaded_at": datetime.fromtimestamp(os.path.getctime(file_path)).isoformat()
+                })
+    
+    return files
+
+@app.delete("/api/files/{filename}")
+async def delete_file(
+    filename: str,
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Xóa file PDF và documents liên quan - chỉ admin"""
+    try:
+        # Kiểm tra quyền admin
+        if not current_user.is_admin:
+            raise HTTPException(
+                status_code=403,
+                detail="Chỉ admin mới có quyền xóa file"
+            )
+
+        file_path = os.path.join(settings.UPLOAD_DIRECTORY, filename)
+        
+        # Xóa file từ thư mục uploads
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            
+        # Xóa documents từ Chroma
+        vector_store = VectorStore()
+        vector_store.delete_documents_by_source(filename)
+        
+        return {
+            "message": f"Đã xóa file {filename} và documents liên quan",
+            "filename": filename
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi khi xóa file: {str(e)}"
+        )
+
 @app.get("/health")
-async def health_check():
+async def health_check(health="good"):
     """Kiểm tra sức khỏe của service"""
+    print("Kiểm tra sức khỏe service: ", health)
     return {"status": "healthy", "message": "Service đang hoạt động bình thường"}
 
 if __name__ == "__main__":

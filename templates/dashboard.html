@@ -13,6 +13,55 @@
         .navbar {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
+        /* PDF Files Section Styles */
+        .pdf-files-section {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+        .pdf-file-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .pdf-file-item:hover {
+            background: #f8f9fa;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .pdf-file-item .filename {
+            font-weight: 500;
+            margin-bottom: 4px;
+            word-break: break-word;
+            cursor: pointer;
+        }
+        .pdf-file-item .file-info {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        .delete-file {
+            opacity: 0;
+            transition: opacity 0.2s;
+            padding: 0.25rem 0.5rem;
+            margin-left: 8px;
+        }
+        .pdf-file-item:hover .delete-file {
+            opacity: 1;
+        }
+        .btn-outline-danger {
+            color: #dc3545;
+            border-color: #dc3545;
+        }
+        .btn-outline-danger:hover {
+            color: #fff;
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
         .chat-container {
             height: 70vh;
             overflow-y: auto;
@@ -62,14 +111,39 @@
             padding: 1rem;
             height: fit-content;
         }
+        /* Chat History Styles */
+        .chat-history-section {
+            max-height: calc(100vh - 320px);
+            overflow-y: auto;
+            margin: 0 -1rem;
+            padding: 0 1rem;
+        }
+        .chat-history-section::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-history-section::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        .chat-history-section::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+        .chat-history-section::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
         .history-item {
-            padding: 0.5rem;
-            border-bottom: 1px solid #eee;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.2s;
         }
         .history-item:hover {
             background: #f8f9fa;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
         .admin-only {
             display: none;
@@ -96,10 +170,25 @@
         </div>
     </nav>
 
-    <div class="container mt-4">
+    <div class="container-fluid mt-4">
         <div class="row">
+            <!-- PDF Files Section -->
+            <div class="col-lg-3">
+                <div class="pdf-files-section">
+                    <h5 class="mb-3">
+                        <i class="fas fa-file-pdf text-danger me-2"></i>
+                        Tài liệu PDF
+                    </h5>
+                    <div id="pdf-list">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-sync fa-spin"></i> Đang tải...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Main Chat Area -->
-            <div class="col-lg-8">
+            <div class="col-lg-6">
                 <!-- Upload Section (Admin Only) -->
                 <div class="admin-only mb-4">
                     <div class="card">
@@ -152,7 +241,7 @@
             </div>
 
             <!-- Sidebar -->
-            <div class="col-lg-4">
+            <div class="col-lg-3">
                 <!-- User Info -->
                 <div class="sidebar mb-4">
                     <h6><i class="fas fa-user me-2"></i>Thông tin người dùng</h6>
@@ -164,7 +253,7 @@
                 <!-- Chat History -->
                 <div class="sidebar">
                     <h6><i class="fas fa-history me-2"></i>Lịch sử trò chuyện</h6>
-                    <div id="chatHistory">
+                    <div id="chatHistory" class="chat-history-section">
                         <p class="text-muted text-center">Đang tải...</p>
                     </div>
                 </div>
@@ -208,6 +297,10 @@
                             el.style.display = 'block';
                         });
                     }
+
+                    // Load PDF files
+                    await loadPDFFiles();
+                    
                 } else {
                     logout();
                     return;
@@ -344,31 +437,146 @@
                 const historyContainer = document.getElementById('chatHistory');
                 
                 if (history.length === 0) {
-                    historyContainer.innerHTML = '<p class="text-muted text-center">Chưa có lịch sử trò chuyện</p>';
+                    historyContainer.innerHTML = '<div class="text-center text-muted py-3">Chưa có lịch sử trò chuyện</div>';
                     return;
                 }
                 
                 historyContainer.innerHTML = history.map(item => `
-                    <div class="history-item" onclick="showHistoryItem('${item.question}', '${item.answer}')">
-                        <div class="fw-bold">${item.question.substring(0, 50)}${item.question.length > 50 ? '...' : ''}</div>
-                        <small class="text-muted">${new Date(item.timestamp).toLocaleString('vi-VN')}</small>
+                    <div class="history-item" onclick="showHistoryItem('${encodeURIComponent(item.question)}', '${encodeURIComponent(item.answer)}')">
+                        <div class="fw-bold text-truncate" title="${item.question}">${item.question}</div>
+                        <div class="text-muted small mt-1">
+                            <i class="fas fa-clock me-1"></i>
+                            ${new Date(item.created_at).toLocaleString('vi-VN')}
+                        </div>
                     </div>
                 `).join('');
             } catch (error) {
                 console.error('Error loading chat history:', error);
+                const historyContainer = document.getElementById('chatHistory');
+                historyContainer.innerHTML = '<div class="text-center text-danger py-3">Lỗi tải lịch sử trò chuyện</div>';
             }
         }
 
         function showHistoryItem(question, answer) {
+            // Giải mã nội dung
+            const decodedQuestion = decodeURIComponent(question);
+            const decodedAnswer = decodeURIComponent(answer);
+            
+            // Xóa nội dung chat hiện tại
             const chatContainer = document.getElementById('chatContainer');
-            chatContainer.innerHTML = `
-                <div class="text-center text-muted mb-3">
-                    <i class="fas fa-history fa-2x mb-2"></i>
-                    <p>Lịch sử trò chuyện</p>
-                </div>
-            `;
-            addMessageToChat(question, 'user');
-            addMessageToChat(answer, 'bot');
+            chatContainer.innerHTML = '';
+
+            // Thêm tin nhắn từ lịch sử
+            addMessageToChat(decodedQuestion, 'user');
+            addMessageToChat(decodedAnswer, 'bot');
+            
+            // Highlight mục lịch sử được chọn
+            document.querySelectorAll('.history-item').forEach(item => {
+                if(item.querySelector('.fw-bold').title === decodedQuestion) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        // PDF files functions
+        async function loadPDFFiles() {
+            try {
+                const response = await apiCall('/api/files');
+                const files = await response.json();
+                const pdfList = document.getElementById('pdf-list');
+                
+                if (!files || files.length === 0) {
+                    pdfList.innerHTML = `
+                        <div class="text-center text-muted">
+                            <i class="fas fa-file-pdf mb-2"></i>
+                            <p>Chưa có tài liệu nào được tải lên</p>
+                        </div>`;
+                    return;
+                }
+
+                const filesHtml = files.map(file => `
+                    <div class="pdf-file-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="filename" onclick="selectPDFFile('${file.filename}')">
+                                <i class="fas fa-file-pdf text-danger me-2"></i>
+                                <span class="text-truncate" title="${file.filename}">${file.filename}</span>
+                            </div>
+                            ${currentUser.is_admin ? `
+                                <button class="btn btn-sm btn-outline-danger delete-file" 
+                                        onclick="deleteFile('${file.filename}')"
+                                        title="Xóa file">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                        <div class="file-info">
+                            <span>${formatFileSize(file.size)}</span>
+                            <span class="mx-1">•</span>
+                            <span>${formatDate(file.uploaded_at)}</span>
+                        </div>
+                    </div>
+                `).join('');
+
+                pdfList.innerHTML = filesHtml;
+            } catch (error) {
+                console.error('Error loading PDF files:', error);
+                document.getElementById('pdf-list').innerHTML = `
+                    <div class="text-center text-danger">
+                        <i class="fas fa-exclamation-circle mb-2"></i>
+                        <p>Lỗi tải danh sách tài liệu</p>
+                    </div>`;
+            }
+        }
+
+        async function deleteFile(filename) {
+            if (!confirm(`Bạn có chắc chắn muốn xóa file "${filename}"?\nLưu ý: Hành động này không thể hoàn tác.`)) {
+                return;
+            }
+            
+            try {
+                const response = await apiCall(`/api/files/${filename}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    // Reload danh sách files sau khi xóa
+                    await loadPDFFiles();
+                    alert('Đã xóa file thành công!');
+                } else {
+                    const data = await response.json();
+                    alert(`Lỗi khi xóa file: ${data.detail}`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Có lỗi xảy ra khi xóa file');
+            }
+        }
+
+        function formatFileSize(bytes) {
+            const mb = bytes / (1024 * 1024);
+            return `${mb.toFixed(2)} MB`;
+        }
+
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleString('vi-VN', {
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function selectPDFFile(filename) {
+            // Highlight selected file
+            document.querySelectorAll('.pdf-file-item').forEach(item => {
+                item.classList.remove('active');
+                if(item.dataset.filename === filename) {
+                    item.classList.add('active');
+                }
+            });
         }
 
         // File upload functions
@@ -439,6 +647,7 @@
                 const data = await response.json();
                 
                 if (response.ok) {
+                    await loadPDFFiles(); // Reload danh sách file sau khi upload thành công
                     alert(`File đã được tải lên thành công!\nTên file: ${data.filename}\nSố chunks: ${data.chunks_created}`);
                 } else {
                     alert('Lỗi: ' + data.detail);

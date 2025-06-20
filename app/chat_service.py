@@ -23,10 +23,10 @@ class ChatService:
     
     def _create_prompt(self, question: str, context: str) -> str:
         """Tạo prompt cho model"""
-        prompt = f"""Bạn là một trợ lý AI thông minh, chuyên trả lời câu hỏi dựa trên tài liệu được cung cấp.
+        prompt = f"""Bạn là một trợ lý AI thông minh, chuyên trả lời câu hỏi dựa trên các tài liệu được cung cấp.
 
 NGUYÊN TẮC QUAN TRỌNG:
-- Chỉ trả lời dựa trên thông tin có trong tài liệu được cung cấp
+- Chỉ trả lời dựa trên thông tin có trong các tài liệu được cung cấp
 - Nếu không tìm thấy thông tin liên quan, hãy nói rõ "Tôi không tìm thấy thông tin này trong tài liệu"
 - Trả lời bằng tiếng Việt một cách tự nhiên và dễ hiểu
 - Nếu có thể, hãy trích dẫn nguồn thông tin
@@ -46,7 +46,7 @@ TRẢ LỜI:"""
             relevant_docs = self.vector_store.similarity_search(message, k=4)
             
             if not relevant_docs:
-                answer = "Tôi không tìm thấy thông tin liên quan trong tài liệu đã tải lên. Vui lòng tải lên tài liệu PDF chứa thông tin bạn cần."
+                answer = "Tôi không tìm thấy thông tin liên quan trong các tài liệu đã tải lên. Vui lòng tải lên tài liệu PDF chứa thông tin bạn cần."
                 sources = []
             else:
                 # Tạo context từ documents
@@ -66,7 +66,7 @@ TRẢ LỜI:"""
                     ],
                     options={
                         'temperature': 0.1,
-                        'top_p': 0.9,
+                        'top_p': 0.8,
                         'num_predict': 512
                     }
                 )

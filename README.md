@@ -5,6 +5,7 @@
 ## Tính năng
 
 - 📄 **Upload PDF**: Tải lên và xử lý file PDF
+- 🗑️ **Xóa PDF (chỉ admin)**: Xóa file PDF và dữ liệu liên quan trong ChromaDB
 - 🤖 **Chat thông minh**: Hỏi đáp dựa trên nội dung PDF
 - 🇻🇳 **Hỗ trợ tiếng Việt**: Giao diện và xử lý hoàn toàn bằng tiếng Việt
 - 🔍 **RAG Technology**: Tìm kiếm và trích xuất thông tin chính xác
@@ -74,6 +75,7 @@ Truy cập: http://localhost:12000
 2. **Đợi xử lý**: Hệ thống sẽ chia nhỏ và lưu trữ nội dung
 3. **Đặt câu hỏi**: Nhập câu hỏi về nội dung PDF
 4. **Nhận câu trả lời**: AI sẽ trả lời dựa trên nội dung đã tải
+5. **Xóa PDF (chỉ admin)**: Nhấn nút 🗑️ bên cạnh file PDF để xóa cả file và dữ liệu liên quan
 
 ## Cấu trúc dự án
 
@@ -91,13 +93,13 @@ agent_dev/
 │   ├── style.css           # CSS styles
 │   └── script.js           # JavaScript
 ├── templates/
-│   └── index.html          # Giao diện chính
+│   └── dashboard.html      # Giao diện chính
 ├── uploads/                # Thư mục lưu PDF
 ├── data/                   # Thư mục database
 ├── requirements.txt        # Dependencies
 ├── .env                    # Cấu hình môi trường
 ├── run.py                  # Script chạy app
-└── README.md              # Tài liệu này
+└── README.md               # Tài liệu này
 ```
 
 ## API Endpoints
@@ -106,12 +108,15 @@ agent_dev/
 - `POST /upload`: Upload file PDF
 - `POST /chat`: Gửi tin nhắn chat
 - `GET /health`: Kiểm tra sức khỏe service
+- `GET /api/files`: Lấy danh sách file PDF đã tải lên
+- `DELETE /api/files/{filename}`: Xóa file PDF và documents liên quan (chỉ admin)
 
 ## Lưu ý
 
 - Đảm bảo Ollama server đang chạy trước khi khởi động ứng dụng
 - File PDF tối đa 10MB
 - Chỉ hỗ trợ file PDF (không hỗ trợ PDF được bảo vệ bằng mật khẩu)
+- Khi xóa file PDF, toàn bộ dữ liệu liên quan trong ChromaDB cũng sẽ bị xóa (chỉ admin mới có quyền này)
 - Lần đầu chạy có thể mất thời gian để tải embedding model
 
 ## Troubleshooting
