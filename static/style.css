@@ -85,19 +85,60 @@ body, html {
 .file-list {
     max-height: 200px;
     overflow-y: auto;
+    margin-top: 10px;
 }
 
 .file-item {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    gap: 10px;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 8px;
-    padding: 10px;
     margin-bottom: 8px;
     font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.file-item:hover {
+    background-color: #f8f9fa;
 }
 
 .file-item i {
-    margin-right: 8px;
     color: #dc3545;
+}
+
+.file-item span {
+    flex: 1;
+    word-break: break-all;
+}
+
+.file-item small {
+    color: #6c757d;
+    font-size: 0.8em;
+}
+
+.file-actions {
+    display: flex;
+    gap: 5px;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.file-actions button {
+    border: none;
+    background: none;
+    padding: 2px 5px;
+    cursor: pointer;
+}
+
+.file-actions button:hover {
+    color: #dc3545;
+}
+
+.file-item:hover .file-actions {
+    opacity: 1;
 }
 
 /* Chat Container */

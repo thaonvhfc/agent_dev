@@ -1,7 +1,9 @@
 import os
 from typing import List
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
+#from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
+#from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.schema import Document
 from app.config import settings
 
@@ -10,14 +12,14 @@ class VectorStore:
         # Sử dụng multilingual embedding model cho tiếng Việt
         try:
             self.embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-                model_kwargs={'device': 'cpu'}
+                model_name= settings.EMBEDDING_MODEL, #"sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+                model_kwargs={'device': 'cuda'}
             )
         except Exception as e:
             print(f"Warning: Could not load HuggingFace embeddings: {e}")
             # Fallback to a simple embedding
             from langchain_community.embeddings import FakeEmbeddings
-            self.embeddings = FakeEmbeddings(size=384)
+            self.embeddings = FakeEmbeddings(size=768)
         
         # Tạo thư mục nếu chưa tồn tại
         os.makedirs(settings.CHROMA_PERSIST_DIRECTORY, exist_ok=True)
@@ -32,7 +34,7 @@ class VectorStore:
         """Thêm documents vào vector store"""
         try:
             self.vectorstore.add_documents(documents)
-            self.vectorstore.persist()
+            #self.vectorstore.persist()
             return len(documents)
         except Exception as e:
             raise Exception(f"Lỗi khi thêm documents: {str(e)}")
@@ -48,3 +50,13 @@ class VectorStore:
     def get_retriever(self, k: int = 4):
         """Trả về retriever để sử dụng với chain"""
         return self.vectorstore.as_retriever(search_kwargs={"k": k})
+    
+    def delete_documents_by_source(self, source: str) -> None:
+        """Xóa documents theo tên file nguồn"""
+        try:
+            self.vectorstore._collection.delete(
+                where={"source": source}
+            )
+            #self.vectorstore.persist()
+        except Exception as e:
+            raise Exception(f"Lỗi khi xóa documents: {str(e)}")

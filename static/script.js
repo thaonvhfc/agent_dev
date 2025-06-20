@@ -4,6 +4,7 @@ class ChatbotApp {
         this.isProcessing = false;
         this.initializeElements();
         this.bindEvents();
+        this.loadUploadedFiles(); // Thêm dòng này
     }
 
     initializeElements() {
@@ -128,18 +129,46 @@ class ChatbotApp {
         }
     }
 
-    addFileToList(filename, chunks) {
+    // Thêm method mới để load danh sách file
+    async loadUploadedFiles() {
+        try {
+            const response = await fetch('/api/files');
+            const files = await response.json();
+            
+            if (files.length > 0) {
+                this.fileList.innerHTML = '';
+                files.forEach(file => {
+                    this.addFileToList(file.filename, file.size);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading files:', error);
+        }
+    }
+
+    // Cập nhật method addFileToList
+    addFileToList(filename, filesize) {
         if (this.fileList.querySelector('p')) {
             this.fileList.innerHTML = '';
         }
 
         const fileItem = document.createElement('div');
         fileItem.className = 'file-item';
+        const size = (filesize / 1024 / 1024).toFixed(2); // Convert to MB
+        
         fileItem.innerHTML = `
             <i class="fas fa-file-pdf"></i>
-            <span>${filename}</span>
-            <small class="d-block text-muted">${chunks} đoạn văn bản</small>
+            <div class="file-info">
+                <span>${filename}</span>
+                <small>${size} MB</small>
+            </div>
+            <div class="file-actions">
+                <button onclick="window.open('/uploads/${filename}', '_blank')" title="Xem">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </div>
         `;
+        
         this.fileList.appendChild(fileItem);
     }
 
