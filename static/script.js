@@ -73,8 +73,8 @@ class ChatbotApp {
             return;
         }
 
-        if (file.size > 10 * 1024 * 1024) { // 10MB
-            this.showNotification('File quá lớn! Tối đa 10MB.', 'error');
+        if (file.size > 20 * 1024 * 1024) { // 20MB
+            this.showNotification('File quá lớn! Tối đa 20MB.', 'error');
             return;
         }
 

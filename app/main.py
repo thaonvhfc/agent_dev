@@ -70,9 +70,9 @@ async def dashboard(request: Request):
     """Dashboard chính sau khi đăng nhập"""
     # Tạo user mặc định cho template (sẽ được override bởi JavaScript)
     default_user = {
-        "username": "guest",
+        "username": "thao test main",
         "role": "user",
-        "created_at": datetime.now()
+        "created_at": datetime.now(),
     }
     return templates.TemplateResponse("dashboard.html", {
         "request": request, 
@@ -149,7 +149,7 @@ async def upload_pdf(
     
     # Kiểm tra kích thước file
     if file.size > settings.MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="File quá lớn (tối đa 10MB)")
+        raise HTTPException(status_code=400, detail="File quá lớn (tối đa 20MB)")
     
     try:
         # Lưu file
