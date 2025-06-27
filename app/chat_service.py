@@ -58,7 +58,7 @@ Yêu cầu:
                 
                 # Tạo prompt
                 prompt = self._create_prompt(message, context)
-                print(f"Context sent to Ollama API:\n{context}\n")
+                #print(f"Context sent to Ollama API:\n{context}\n")
                 # Gọi Ollama API
                 response = self.client.chat(
                     model=settings.OLLAMA_MODEL,
@@ -92,7 +92,7 @@ Yêu cầu:
                 db.add(chat_history)
                 db.commit()
             
-            return answer, sources
+            return answer, sources, context
             
         except Exception as e:
             return f"Lỗi khi xử lý câu hỏi: {str(e)}", []

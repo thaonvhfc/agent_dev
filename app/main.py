@@ -11,13 +11,14 @@ import aiofiles
 
 from app.models import (
     ChatMessage, ChatResponse, UploadResponse, 
-    UserCreate, UserLogin, Token, UserResponse, ChatHistoryResponse
+    UserCreate, UserLogin, Token, UserResponse, ChatHistoryResponse,
+    FeedbackCreate, FeedbackResponse
 )
 from app.document_processor import DocumentProcessor
 from app.vector_store import VectorStore
 from app.chat_service import ChatService
 from app.config import settings
-from app.database import get_db, create_tables, User, ChatHistory
+from app.database import get_db, create_tables, User, ChatHistory, Feedback as FeedbackDB
 from app.auth import (
     authenticate_user, create_access_token, get_current_user, 
     get_current_admin_user, get_password_hash, create_admin_user,
@@ -185,8 +186,8 @@ async def chat(
 ):
     """Xử lý tin nhắn chat - yêu cầu đăng nhập"""
     try:
-        response, sources = chat_service.chat(message.message, current_user.id, db)
-        return ChatResponse(response=response, sources=sources)
+        response, sources, context = chat_service.chat(message.message, current_user.id, db)
+        return ChatResponse(response=response, sources=sources, context=context)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi xử lý chat: {str(e)}")
 
@@ -272,6 +273,25 @@ async def delete_file(
             status_code=500,
             detail=f"Lỗi khi xóa file: {str(e)}"
         )
+
+@app.post("/api/feedback", response_model=FeedbackResponse)
+async def save_feedback(
+    feedback: FeedbackCreate,
+    current_user: User = Depends(get_current_user_required),
+    db: Session = Depends(get_db)
+):
+    db_feedback = FeedbackDB(
+        user_id=current_user.id,
+        context=feedback.context,
+        question=feedback.question,
+        answer=feedback.answer,
+        score=feedback.score,
+        created_at=datetime.utcnow()
+    )
+    db.add(db_feedback)
+    db.commit()
+    db.refresh(db_feedback)
+    return db_feedback
 
 @app.get("/health")
 async def health_check(health="good"):
