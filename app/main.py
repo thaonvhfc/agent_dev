@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import aiofiles
+from pydantic import BaseModel
 
 from app.models import (
     ChatMessage, ChatResponse, UploadResponse, 
@@ -292,6 +293,24 @@ async def save_feedback(
     db.commit()
     db.refresh(db_feedback)
     return db_feedback
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+@app.post("/api/change-password")
+async def change_password(
+    data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user_required),
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.id == current_user.id).first()
+    from app.auth import verify_password, get_password_hash
+    if not user or not verify_password(data.old_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Mật khẩu cũ không đúng")
+    user.password_hash = get_password_hash(data.new_password)
+    db.commit()
+    return {"message": "Đổi mật khẩu thành công"}
 
 @app.get("/health")
 async def health_check(health="good"):
