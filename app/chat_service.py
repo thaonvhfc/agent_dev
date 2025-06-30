@@ -23,20 +23,24 @@ class ChatService:
     
     def _create_prompt(self, question: str, context: str) -> str:
         """Tạo prompt cho model"""
-        prompt = f"""Bạn là một trợ lý AI thông minh, chuyên trả lời câu hỏi dựa trên các tài liệu được cung cấp.
+        prompt = f"""Bạn là một trợ lý AI chuyên nghiệp, có nhiệm vụ đọc và trả lời câu hỏi của người dùng dựa trên các đoạn văn bản đã được truy xuất.
 
-NGUYÊN TẮC QUAN TRỌNG:
-- Chỉ trả lời dựa trên thông tin có trong các tài liệu được cung cấp
-- Nếu không tìm thấy thông tin liên quan, hãy nói rõ "Tôi không tìm thấy thông tin này trong tài liệu"
-- Trả lời bằng tiếng Việt một cách tự nhiên và dễ hiểu
-- Nếu có thể, hãy trích dẫn nguồn thông tin
+Chỉ sử dụng thông tin từ **các đoạn văn bản được cung cấp bên dưới** để trả lời.  
+Nếu không tìm thấy câu trả lời phù hợp trong các đoạn văn, hãy trả lời: **"Tôi không tìm thấy thông tin trong tài liệu."**
 
-TÀI LIỆU THAM KHẢO:
-{context}
+Yêu cầu:
+- Trả lời bằng **tiếng Việt rõ ràng, chính xác**.
+- Câu trả lời nên **ngắn gọn, súc tích** .
+- Nếu câu trả lời có nhiều phần, hãy **đánh số** và xuống dòng các phần để dễ theo dõi.
+- Tuyệt đối **không phỏng đoán** hay thêm thông tin ngoài tài liệu.
+- Không nói rằng bạn là AI hoặc nhắc đến mô hình.
+---
 
-CÂU HỎI: {question}
+**Câu hỏi**: {question}
 
-TRẢ LỜI:"""
+**Văn bản tham chiếu**:  
+{context}"""
+        
         return prompt
     
     def chat(self, message: str, user_id: int = None, db: Session = None) -> Tuple[str, List[str]]:
@@ -54,7 +58,7 @@ TRẢ LỜI:"""
                 
                 # Tạo prompt
                 prompt = self._create_prompt(message, context)
-                
+                #print(f"Context sent to Ollama API:\n{context}\n")
                 # Gọi Ollama API
                 response = self.client.chat(
                     model=settings.OLLAMA_MODEL,
@@ -65,7 +69,7 @@ TRẢ LỜI:"""
                         }
                     ],
                     options={
-                        'temperature': 0.1,
+                        'temperature': 0.2,
                         'top_p': 0.8,
                         'num_predict': 512
                     }
@@ -88,7 +92,7 @@ TRẢ LỜI:"""
                 db.add(chat_history)
                 db.commit()
             
-            return answer, sources
+            return answer, sources, context
             
         except Exception as e:
             return f"Lỗi khi xử lý câu hỏi: {str(e)}", []

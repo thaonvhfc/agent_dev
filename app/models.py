@@ -8,6 +8,7 @@ class ChatMessage(BaseModel):
 class ChatResponse(BaseModel):
     response: str
     sources: Optional[List[str]] = []
+    context: str
     
 class UploadResponse(BaseModel):
     message: str
@@ -48,3 +49,22 @@ class ChatHistoryResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class FeedbackCreate(BaseModel):
+    context: str
+    question: str
+    answer: str
+    score: str  # 'like' hoặc 'unlike'
+
+class FeedbackResponse(BaseModel):
+    id: int
+    user_id: int
+    context: str
+    question: str
+    answer: str
+    score: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+

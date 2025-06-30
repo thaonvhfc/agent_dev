@@ -23,6 +23,8 @@
             overflow-y: auto;
         }
         .pdf-file-item {
+            display: flex;
+            flex-direction: column;
             padding: 10px;
             margin-bottom: 8px;
             border: 1px solid #dee2e6;
@@ -30,15 +32,21 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        .pdf-file-item:hover {
-            background: #f8f9fa;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        .pdf-file-item .file-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
         .pdf-file-item .filename {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 70%;
             font-weight: 500;
             margin-bottom: 4px;
-            word-break: break-word;
             cursor: pointer;
         }
         .pdf-file-item .file-info {
@@ -46,6 +54,7 @@
             color: #6c757d;
         }
         .delete-file {
+            flex-shrink: 0;
             opacity: 0;
             transition: opacity 0.2s;
             padding: 0.25rem 0.5rem;
@@ -149,6 +158,9 @@
         .admin-only {
             display: none;
         }
+        .feedback-btns .btn {
+            min-width: 36px;
+        }
     </style>
 </head>
 <body>
@@ -166,6 +178,9 @@
                 </span>
                 <button class="btn btn-outline-light btn-sm" onclick="logout()">
                     <i class="fas fa-sign-out-alt me-1"></i>Đăng xuất
+                </button>
+                <button class="btn btn-outline-light btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                    <i class="fas fa-key"></i> Đổi mật khẩu
                 </button>
             </div>
         </div>
@@ -261,6 +276,37 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Modal đổi mật khẩu -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <form class="modal-content" id="changePasswordForm">
+          <div class="modal-header">
+            <h5 class="modal-title" id="changePasswordLabel"><i class="fas fa-key me-2"></i>Đổi mật khẩu</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div id="changePasswordAlert"></div>
+            <div class="mb-3">
+              <label for="oldPassword" class="form-label">Mật khẩu cũ</label>
+              <input type="password" class="form-control" id="oldPassword" required>
+            </div>
+            <div class="mb-3">
+              <label for="newPassword" class="form-label">Mật khẩu mới</label>
+              <input type="password" class="form-control" id="newPassword" required>
+            </div>
+            <div class="mb-3">
+              <label for="confirmNewPassword" class="form-label">Xác nhận mật khẩu mới</label>
+              <input type="password" class="form-control" id="confirmNewPassword" required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Đổi mật khẩu</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -374,7 +420,7 @@
                 removeTypingIndicator(typingId);
                 
                 if (response.ok) {
-                    addMessageToChat(data.response, 'bot', data.sources);
+                    addMessageToChat(data.response, 'bot', data.sources, data.context);
                     loadChatHistory(); // Refresh history
                 } else {
                     addMessageToChat('Lỗi: ' + data.detail, 'bot');
@@ -391,21 +437,40 @@
             }
         }
 
-        function addMessageToChat(message, sender, sources = []) {
+        function addMessageToChat(message, sender, sources = [], context = "") {
             const chatContainer = document.getElementById('chatContainer');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}-message`;
-            
+
             let sourceText = '';
             if (sources && sources.length > 0) {
                 sourceText = `<div class="mt-2"><small><strong>Nguồn:</strong> ${sources.join(', ')}</small></div>`;
             }
-            
+
+            let feedbackHtml = '';
+            if (sender === 'bot') {
+                feedbackHtml = `
+                    <div class="mt-2 feedback-btns">
+                        <button class="btn btn-sm btn-outline-success me-2" onclick="sendFeedback(this, 'like')">
+                            <i class="fas fa-thumbs-up"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="sendFeedback(this, 'unlike')">
+                            <i class="fas fa-thumbs-down"></i>
+                        </button>
+                    </div>
+                `;
+                // Lưu context/question/answer vào thuộc tính
+                messageDiv.dataset.context = context;
+                messageDiv.dataset.answer = message;
+                messageDiv.dataset.question = chatContainer.querySelector('.user-message:last-child')?.textContent || '';
+            }
+
             messageDiv.innerHTML = `
                 <div>${message}</div>
                 ${sourceText}
+                ${feedbackHtml}
             `;
-            
+
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
@@ -501,7 +566,7 @@
 
                 const filesHtml = files.map(file => `
                     <div class="pdf-file-item">
-                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="file-row">
                             <div class="filename" onclick="selectPDFFile('${file.filename}')">
                                 <i class="fas fa-file-pdf text-danger me-2"></i>
                                 <span class="text-truncate" title="${file.filename}">${file.filename}</span>
@@ -663,6 +728,65 @@
                 }, 2000);
             }
         }
+
+        async function sendFeedback(btn, score) {
+            const messageDiv = btn.closest('.bot-message');
+            const context = messageDiv.dataset.context || '';
+            const answer = messageDiv.dataset.answer || '';
+            const question = messageDiv.dataset.question || '';
+
+            try {
+                const response = await apiCall('/api/feedback', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        context,
+                        question,
+                        answer,
+                        score
+                    })
+                });
+                if (response.ok) {
+                    btn.parentElement.innerHTML = '<span class="text-success">Đã ghi nhận đánh giá!</span>';
+                } else {
+                    alert('Lỗi khi gửi đánh giá');
+                }
+            } catch (err) {
+                alert('Lỗi kết nối khi gửi đánh giá');
+            }
+        }
+
+        document.getElementById('changePasswordForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const oldPassword = document.getElementById('oldPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+            const alertDiv = document.getElementById('changePasswordAlert');
+
+            if (newPassword !== confirmNewPassword) {
+                alertDiv.innerHTML = `<div class="alert alert-danger">Mật khẩu mới không khớp!</div>`;
+                return;
+            }
+
+            try {
+                const response = await apiCall('/api/change-password', {
+                    method: 'POST',
+                    body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
+                });
+                if (response.ok) {
+                    alertDiv.innerHTML = `<div class="alert alert-success">Đổi mật khẩu thành công!</div>`;
+                    setTimeout(() => {
+                        document.getElementById('changePasswordForm').reset();
+                        var modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
+                        modal.hide();
+                    }, 1500);
+                } else {
+                    const data = await response.json();
+                    alertDiv.innerHTML = `<div class="alert alert-danger">${data.detail}</div>`;
+                }
+            } catch (err) {
+                alertDiv.innerHTML = `<div class="alert alert-danger">Lỗi kết nối!</div>`;
+            }
+        });
     </script>
 </body>
 </html>

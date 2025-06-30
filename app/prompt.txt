@@ -1,0 +1,26 @@
+ prompt = f"""Bạn là một trợ lý AI thông minh, chuyên trả lời câu hỏi dựa trên các tài liệu nhận được sau khi retrieval
+
+NGUYÊN TẮC QUAN TRỌNG:
+- Chỉ trả lời dựa trên thông tin có trong các tài liệu được cung cấp
+- Nếu không tìm thấy thông tin liên quan, hãy nói rõ "Tôi không tìm thấy thông tin này trong tài liệu"
+- Trả lời bằng tiếng Việt một cách tự nhiên và dễ hiểu
+- Nếu có thể, hãy trích dẫn nguồn thông tin
+
+TÀI LIỆU THAM KHẢO:
+{context}
+
+CÂU HỎI: {question}
+
+TRẢ LỜI:"""
+
+Điều 2. Phạm vi áp dụng
+Nội quy lao động áp dụng đối với tất cả mọi người lao động làm việc trong doanh nghi ệp theo các
+hình thức và các loại hợp đồng lao động, kể cả người lao động trong thời gian thử việc, học nghề.
+Điều 3. Áp dụng, sửa đổi và bổ sung
+Những vấn đề không được quy định trong Nội quy lao động này sẽ được giải quyết theo những quy
+định của pháp luật lao động.
+Tùy thuộc vào sự thay đổi chính sách của Công ty và pháp luật lao động, những điều khoản trong nội
+quy này có thể được sửa đổi, bổ sung tùy từng trường hợp. Công ty sẽ đăng ký những sửa đổi này tại
+Sở Lao động Thương binh và Xã hội và thống báo cho tất cả người lao động.
+Điều 4. Hiệu lực thi hành
+Những nội dung quy định trong nội quy này có hiệu lực kể từ ngày được Sở Lao động Thương binh

@@ -38,6 +38,17 @@ class ChatHistory(Base):
     # Relationship với user
     user = relationship("User", back_populates="chat_history")
 
+# Feedback model
+class Feedback(Base):
+    __tablename__ = 'feedback'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'))
+    context = Column(Text)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False)
+    score = Column(String(10), nullable=False)  # 'like' hoặc 'unlike'
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 # Tạo tables
 def create_tables():
     Base.metadata.create_all(bind=engine)
