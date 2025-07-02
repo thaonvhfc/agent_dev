@@ -466,7 +466,7 @@
             }
 
             messageDiv.innerHTML = `
-                <div>${message}</div>
+                <div>${message.replace(/\n/g, '<br>')}</div>
                 ${sourceText}
                 ${feedbackHtml}
             `;

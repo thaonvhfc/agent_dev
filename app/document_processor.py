@@ -4,13 +4,15 @@ from pypdf import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 from app.config import settings
+import re
+import unicodedata
 
 class DocumentProcessor:
     def __init__(self):
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=settings.CHUNK_SIZE,
             chunk_overlap=settings.CHUNK_OVERLAP,
-            separators=["\n\n", ".\n", ". ", " ", ""]
+            separators=["\n\n", "\n", ". ", "; ", " ", ""]
         )
     
     def extract_text_from_pdf(self, file_path: str) -> str:
@@ -26,14 +28,38 @@ class DocumentProcessor:
             raise Exception(f"Lỗi khi đọc file PDF: {str(e)}")
     
 
-    def remove_repeated_lines(self, text:str):
+    def starts_with_uppercase(self, line: str) -> bool:
+        if not line:
+            return False
+        first_char = line.lstrip()[0]  # Bỏ khoảng trắng đầu dòng, lấy ký tự đầu tiên
+        return unicodedata.category(first_char) == 'Lu'  # 'Lu' = Letter, uppercase
+
+    def clean_pdf_text_lines(self, text:str):
         lines = text.split("\n")
         line_counts = {}
         for line in lines:
             line_counts[line] = line_counts.get(line, 0) + 1
 
-        cleaned = [line for line in lines if line_counts[line] <= 3]  # xuất hiện quá 3 lần là nghi header/footer
-        return "\n".join(cleaned)
+        cleaned_text = [line for line in lines if line_counts[line] <= 3]  # xuất hiện quá 3 lần là nghi header/footer
+        cleaned_lines = []
+        for i, line in enumerate(cleaned_text):
+            line = line.strip()
+            # Bỏ dòng trống hoặc dòng rất ngắn nghi ngờ là header/footer
+            if not line or len(line) < 5:
+                continue
+
+            # Nối dòng nếu dòng hiện tại không kết thúc bằng dấu câu và dòng tiếp theo không phải bắt đầu bằng chữ hoa
+            if cleaned_lines:
+                prev_line = cleaned_lines[-1]
+                if not re.search(r'[.!?…]$', prev_line) and not self.starts_with_uppercase(line):
+                    cleaned_lines[-1] = prev_line + ' ' + line
+                    continue
+
+            cleaned_lines.append(line)
+
+        print(cleaned_lines[1:10])
+        return "\n".join(cleaned_lines)
+
 
     def split_text_into_chunks(self, text: str, source: str) -> List[Document]:
         """Chia văn bản thành các chunk nhỏ"""
@@ -56,7 +82,7 @@ class DocumentProcessor:
     def process_pdf(self, file_path: str) -> List[Document]:
         """Xử lý file PDF và trả về danh sách documents"""
         text = self.extract_text_from_pdf(file_path)
-        text = self.remove_repeated_lines(text)  # Loại bỏ các dòng lặp lại
+        text = self.clean_pdf_text_lines(text)  # làm sạch văn bản từ PDF
         #print(f"Text đã trích xuất từ file:\n\n{text}...")
         filename = os.path.basename(file_path)
         documents = self.split_text_into_chunks(text, filename)
