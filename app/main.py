@@ -145,9 +145,11 @@ async def upload_pdf(
 ):
     """Upload và xử lý file PDF - chỉ admin"""
     
+    #ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt']
+    ext = os.path.splitext(file.filename)[1].lower()
     # Kiểm tra định dạng file
-    if not file.filename.lower().endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Chỉ chấp nhận file PDF")
+    if ext not in settings.ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Chỉ chấp nhận file PDF, DOC, DOCX hoặc TXT")
     
     # Kiểm tra kích thước file
     if file.size > settings.MAX_FILE_SIZE:
@@ -156,14 +158,16 @@ async def upload_pdf(
     try:
         # Lưu file
         file_path = os.path.join(settings.UPLOAD_DIRECTORY, file.filename)
-        
         async with aiofiles.open(file_path, 'wb') as f:
             content = await file.read()
             await f.write(content)
         
         # Xử lý PDF
-        documents = document_processor.process_pdf(file_path)
+        #documents = document_processor.process_pdf(file_path)
         
+        # Xử lý file theo định dạng
+        documents = document_processor.process_file(file_path)
+
         # Thêm vào vector store
         chunks_created = vector_store.add_documents(documents)
         
@@ -231,7 +235,7 @@ async def get_uploaded_files(current_user: User = Depends(get_current_user_requi
     
     if os.path.exists(upload_dir):
         for filename in os.listdir(upload_dir):
-            if filename.endswith('.pdf'):
+            if filename.lower().endswith(settings.ALLOWED_EXTENSIONS):
                 file_path = os.path.join(upload_dir, filename)
                 files.append({
                     "filename": filename,

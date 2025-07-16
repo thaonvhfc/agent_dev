@@ -215,8 +215,8 @@
                             <div class="upload-area" id="uploadArea">
                                 <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
                                 <h5>Kéo thả file PDF vào đây hoặc click để chọn</h5>
-                                <p class="text-muted">Chỉ chấp nhận file PDF, tối đa 20MB</p>
-                                <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+                                <p class="text-muted">Chấp nhận các file PDF, DOC, DOCX, TXT (tối đa 20MB)</p>
+                                <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt" style="display: none;">
                                 <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
                                     <i class="fas fa-folder-open me-2"></i>Chọn file
                                 </button>
@@ -563,6 +563,8 @@
                         </div>`;
                     return;
                 }
+                // Sắp xếp files theo thời gian upload mới nhất lên đầu
+                files.sort((a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at));
 
                 const filesHtml = files.map(file => `
                     <div class="pdf-file-item">
@@ -682,8 +684,12 @@
         }
 
         async function handleFileUpload(file) {
-            if (!file.name.toLowerCase().endsWith('.pdf')) {
-                alert('Chỉ chấp nhận file PDF');
+            // if (!file.name.toLowerCase().endsWith('.pdf')) {
+            //     alert('Chỉ chấp nhận file PDF');
+            //     return;
+            // }
+            if (!/\.(pdf|doc|docx|txt)$/i.test(file.name)) {
+                alert('Chỉ chấp nhận file PDF, DOC, DOCX, TXT');
                 return;
             }
             

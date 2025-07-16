@@ -6,6 +6,8 @@ from langchain.schema import Document
 from app.config import settings
 import re
 import unicodedata
+import docx
+#from doc2docx import convert
 
 class DocumentProcessor:
     def __init__(self):
@@ -57,7 +59,7 @@ class DocumentProcessor:
 
             cleaned_lines.append(line)
 
-        print(cleaned_lines[1:10])
+        #print(cleaned_lines[1:10])
         return "\n".join(cleaned_lines)
 
 
@@ -87,3 +89,30 @@ class DocumentProcessor:
         filename = os.path.basename(file_path)
         documents = self.split_text_into_chunks(text, filename)
         return documents
+    
+    # Xử lý các file khác nhau như DOCX, TXT, PDF
+    def extract_text_from_file(self, file_path: str) -> str:
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext == '.pdf':
+            text = self.extract_text_from_pdf(file_path)
+            text = self.clean_pdf_text_lines(text)  # làm sạch văn bản từ PDF
+            return text
+        elif ext == '.txt':
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        elif ext in ['.doc', '.docx']:
+            return self.extract_text_from_docx(file_path)
+        else:
+            raise Exception("Định dạng file không hỗ trợ")
+
+    def extract_text_from_docx(self, file_path: str) -> str:
+        doc = docx.Document(file_path)
+        return '\n'.join([para.text for para in doc.paragraphs])
+
+    def process_file(self, file_path: str) -> List[Document]:
+        text = self.extract_text_from_file(file_path)
+        filename = os.path.basename(file_path)
+        documents = self.split_text_into_chunks(text, filename)
+        return documents
+    
+    
